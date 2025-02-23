@@ -43,7 +43,7 @@ module.exports = {
                 interaction.followUp("Invalid role. Please type 'p' or 's'.");
                 return;
             }
-            
+
             // Get the number from the subject
             getNumber(interaction, psychic, subject);
 
@@ -53,22 +53,89 @@ module.exports = {
     }
 }
 
-async function getNumber(interaction, psychic, subject) { 
+async function getNumber(interaction, psychic, subject) {
     try {
         const dmChannel = await subject.createDM();
-        await dmChannel.send(`Player ${psychic} in ${interaction.channel} has started a number guessing experiment.  Please type a number.`);
-
-        const handler = async (message) => {
-
-        }
-
-        const filter = response => response.author.id === subject.id;
-        const collected = await dmChannel.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] });
-
-        const number = collected.first().content;
-        interaction.followUp(`The subject has chosen the number: ${number}`);
+        await dmChannel.send(`Player ${psychic} in ${interaction.channel} has started a number guessing experiment.  Please type a whole number.`);
     } catch (error) {
         interaction.followUp("Failed to get the number from the subject.");
         logger.error(error);
     }
+
+    const handler = async (message) => {
+        client.removeListener("messageCreate", handler);
+
+        let content = message.content;
+
+        if (isNaN(content)) {
+            interaction.followUp("The input is not a valid number. Please try again.");
+            return;
+        }
+
+        const number = parseInt(content);
+
+        await interaction.followUp("Subject has made selection.  Starting game...").ActionRowBuilder
+        await dmChannel.send(`Please return to ${interaction.channel} to watch ${psychic} make guesses.`);
+
+        startGame(interaction, number, psychic, subject);
+    }
+
+    client.on("messageCreate", handler);
+}
+
+function startGame(interaction, number, psychic, subject) {
+    const targetNumber = number.toString();
+    let attempts = 0;
+    let maxScore = 100; // Starting score, reduced based on attempts
+
+    const askForGuess = async () => {
+        const handler = async (message) => {
+            if (message.author.id != subject.id) return
+            client.removeListener("messageCreate", handler);
+
+            attempts += 1;
+            const guess = message.content;
+            const result = evaluateGuess(targetNumber, guess);
+
+            if (result.correct) {
+                const finalScore = calculateScore(attempts, maxScore);
+                await i.reply(`Congratulations ${subject}! You guessed the correct number **${targetNumber}** in ${attempts} tries. Your score: ${finalScore}`);
+                // Save stats
+                saveGameStats()
+            }
+            else {
+                await i.reply(`Your guess: ${guess}. ${result.message}. Try again!`);
+                askForGuess(); // Ask for the next guess
+            }
+        }
+
+        client.on("messageCreate", handler);
+    }
+
+    const evaluateGuess = (target, guess) => {
+        let message = '';
+        let correct = false;
+
+        if (guess === target) {
+            correct = true;
+        } else {
+            message = 'Incorrect guess. Here is how close you are: ';
+            for (let i = 0; i < target.length; i++) {
+                if (target[i] === guess[i]) {
+                    message += `Digit ${i + 1} is correct. `;
+                } else if (target.includes(guess[i])) {
+                    message += `Digit ${i + 1} is in the wrong position. `;
+                } else {
+                    message += `Digit ${i + 1} is wrong. `;
+                }
+            }
+        }
+        return { correct, message };
+    };
+
+    const calculateScore = (attempts, maxScore) => {
+        return Math.max(maxScore - attempts * 10, 0); // Subtract points based on attempts
+    };
+
+    askForGuess(); // Start the guessing loop
 }
