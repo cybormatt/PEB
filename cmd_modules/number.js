@@ -1,4 +1,5 @@
 const logger = require("../lib/logger.js");
+const mysql = require("../lib/mysql.js");
 
 var client;
 
@@ -99,12 +100,13 @@ function startGame(interaction, number, psychic, subject) {
 
             if (result.correct) {
                 const finalScore = calculateScore(attempts, maxScore);
-                await i.reply(`Congratulations ${subject}! You guessed the correct number **${targetNumber}** in ${attempts} tries. Your score: ${finalScore}`);
+                await interaction.followUp(`Congratulations ${subject}! You guessed the correct number **${targetNumber}** in ${attempts} tries. Your score: ${finalScore}`);
+
                 // Save stats
-                saveGameStats()
+                saveGameStats(interaction, psychic, subject, targetNumber, attempts, finalScore);
             }
             else {
-                await i.reply(`Your guess: ${guess}. ${result.message}. Try again!`);
+                await interaction.followUp(`Your guess: ${guess}. ${result.message}. Try again!`);
                 askForGuess(); // Ask for the next guess
             }
         }
@@ -138,4 +140,20 @@ function startGame(interaction, number, psychic, subject) {
     };
 
     askForGuess(); // Start the guessing loop
+}
+
+async function saveGameStats(interaction, psychic, subject, targetNumber, attempts, finalScore) {
+    const sql1 = "SELECT MAX(UNIQUE_ID) as MAX_ID FROM STATS";
+
+    var result;
+    try {
+        result = await mysql.runQuery(sql1);
+    }
+    catch (error) {
+        logger.error("*** Error getting max unique id from stats table ***");
+        return;
+    }
+
+    var unique_id = result[0].MAX_ID + 1;
+    logger.info(`Unique ID: ${unique_id}`);
 }
