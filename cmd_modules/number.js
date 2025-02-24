@@ -8,7 +8,7 @@ module.exports = {
     init() {
         client = this.client;
     },
-    async initiateGame(interaction) {
+    async execute(interaction) {
         var user2 = interaction.options.getUser("user2");
 
         if (!user2) {
@@ -68,7 +68,7 @@ async function getNumber(interaction, psychic, subject) {
     }
 
     const handler = async (message) => {
-        client.removeListener("messageCreate", handler);
+        if (message.author.id != subject.id && !message.guild) return;
 
         let content = message.content;
 
@@ -76,6 +76,8 @@ async function getNumber(interaction, psychic, subject) {
             interaction.followUp("The input is not a valid number. Please try again.");
             return;
         }
+
+        client.removeListener("messageCreate", handler);
 
         const number = parseInt(content);
 
