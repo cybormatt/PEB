@@ -26,6 +26,8 @@ module.exports = {
         interaction.reply("Are you the 'psychic' or the 'subject'? Please type 'p' or 's'.");
 
         const handler = async (message) => {
+            if (message.author.id != user1.id) return
+
             client.removeListener("messageCreate", handler);
 
             let role = message.content.toLowerCase();
@@ -45,6 +47,8 @@ module.exports = {
                 return;
             }
 
+            interaction.followUp(`Please wait while I get the number from ${subject}...`);
+
             // Get the number from the subject
             getNumber(interaction, psychic, subject);
 
@@ -55,8 +59,8 @@ module.exports = {
 }
 
 async function getNumber(interaction, psychic, subject) {
+    const dmChannel = await subject.createDM();
     try {
-        const dmChannel = await subject.createDM();
         await dmChannel.send(`Player ${psychic} in ${interaction.channel} has started a number guessing experiment.  Please type a whole number.`);
     } catch (error) {
         interaction.followUp("Failed to get the number from the subject.");
@@ -75,7 +79,7 @@ async function getNumber(interaction, psychic, subject) {
 
         const number = parseInt(content);
 
-        await interaction.followUp("Subject has made selection.  Starting game...").ActionRowBuilder
+        await interaction.followUp("Subject has made selection.  Starting game...");
         await dmChannel.send(`Please return to ${interaction.channel} to watch ${psychic} make guesses.`);
 
         startGame(interaction, number, psychic, subject);
@@ -91,7 +95,7 @@ function startGame(interaction, number, psychic, subject) {
 
     const askForGuess = async () => {
         const handler = async (message) => {
-            if (message.author.id != subject.id) return
+            if (message.author.id != psychic.id) return
             client.removeListener("messageCreate", handler);
 
             attempts += 1;
@@ -123,6 +127,10 @@ function startGame(interaction, number, psychic, subject) {
         } else {
             message = 'Incorrect guess. Here is how close you are: ';
             for (let i = 0; i < target.length; i++) {
+                if (i >= guess.length) {
+                    continue; // Skip if guess is shorter than target
+                }
+
                 if (target[i] === guess[i]) {
                     message += `Digit ${i + 1} is correct. `;
                 } else if (target.includes(guess[i])) {
@@ -155,5 +163,18 @@ async function saveGameStats(interaction, psychic, subject, targetNumber, attemp
     }
 
     var unique_id = result[0].MAX_ID + 1;
-    logger.info(`Unique ID: ${unique_id}`);
+
+    const sql2 = `INSERT INTO STATS (UNIQUE_ID, PLAYER_ID, PLAYER_NAME, SUBJECT_ID, ` +
+        `SUBJECT_NAME, GUILD_ID, DATE, VALUE, NUM_GUESSES, SCORE) VALUES ` +
+        `('${unique_id}', '${psychic.id}', '${psychic.username}', '${subject.id}', ` +
+        `'${subject.username}', '${interaction.guild.id}', NOW(), '${targetNumber}', ` +
+        `'${attempts}', '${finalScore}')`;
+
+    try {
+        await mysql.runQuery(sql2);
+    }
+    catch (error) {
+        logger.error("*** Error saving game stats: " + error.stack);
+        return;
+    }
 }
