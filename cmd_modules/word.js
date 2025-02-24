@@ -1,4 +1,5 @@
 const logger = require("../lib/logger.js");
+const mysql = require("../lib/mysql.js");
 
 var client;
 
@@ -82,62 +83,92 @@ async function getWord(interaction, psychic, subject) {
     client.on("messageCreate", handler);
 }
 
-function startGame(interaction, word2, psychic2, subject2) {
-    const psychic = interaction.user; // User1 is the one who triggered the interaction
-    const subject = interaction.options.getUser('user2'); // User2 is fetched from the command options
-    const word = interaction.options.getString('word').toLowerCase(); // The word provided by user1
-    const wordLength = word.length;
+function startGame(interaction, word, psychic, subject) {
     let attempts = 0;
-    let guessedCorrectly = false;
 
-    // Prompt user2 to start guessing
-    await interaction.reply({
-        content: `${subject}, the game has started! You need to guess the word that ${psychic.username} has supplied. The word is ${wordLength} letters long. Type your guess below!`,
-        ephemeral: true,
-    });
+    const askForGuess = async () => {
+        const handler = async (message) => {
+            if (message.author.id != psychic.id) return;
 
-    // Create a message collector for user2's guesses
-    const filter = response => response.author.id === subject.id;
-    const collector = interaction.channel.createMessageCollector({ filter, time: 60000 });
+            client.removeListener("messageCreate", handler);
 
-    collector.on('collect', async message => {
-        const guess = message.content.toLowerCase();
-        attempts++;
+            attempts++;
+            const guess = message.content;
+            const result = evaluateGuess(word, guess);
 
-        if (guess === word) {
-            guessedCorrectly = true;
-            collector.stop(); // Stop the collector once the correct guess is made
+            if (result.correct) {
+                const score = Math.max(0, 100 - (attempts - 1) * 10);
+                await interaction.followUp(`🎉 Congratulations ${subject}, you guessed the word "${word}" correctly in ${attempts} tries! Your score is ${score}.`);
 
-            const score = Math.max(0, 100 - (attempts - 1) * 10); // Higher score with fewer attempts
-            await interaction.followUp({
-                content: `🎉 Congratulations ${subject}, you guessed the word "${word}" correctly in ${attempts} tries! Your score is ${score}.`,
-            });
-        } else {
-            // Compare each letter in user1's word with user2's guess and provide feedback
-            let feedback = '';
-            for (let i = 0; i < word.length; i++) {
-                if (guess[i] === word[i]) {
-                    feedback += `✅ ${guess[i]}`; // Correct letter at the correct position
-                } else if (word.includes(guess[i])) {
-                    feedback += `🔀 ${guess[i]}`; // Correct letter, wrong position
-                } else {
-                    feedback += `❌ ${guess[i]}`; // Incorrect letter
-                }
+                // Save stats
+                saveGameStats(interaction, psychic, subject, word, attempts, score);
+
+            } else {
+                await interaction.followUp(`Your guess: ${guess}. ${result.feedback}. Try again!`);
+                askForGuess(); // Ask for the next guess
             }
 
-            await interaction.followUp({
-                content: `${subject}, your guess "${guess}" is not correct. Here's how close you were:\n${feedback}\nTry again!`,
-                ephemeral: true,
-            });
         }
-    });
 
-    collector.on('end', collected => {
-        if (!guessedCorrectly) {
-            interaction.followUp({
-                content: `Game over! The correct word was "${word}".`,
-                ephemeral: true,
-            });
+        client.on("messageCreate", handler);
+    }
+
+    const evaluateGuess = (word, guess) => {
+        let feedback = '';
+        let correct = false;
+
+        if (guess.toLowerCase() === word.toLowerCase()) {
+            correct = true;
         }
-    });
+        else {
+            feedback = 'Incorrect guess. Here is how close you are: ';
+            for (let i = 0; i < word.length; i++) {
+                if (guess[i] === word[i]) {
+                    feedback += `✅ ${guess[i]}`;
+                } else if (word.includes(guess[i])) {
+                    feedback += `🔀 ${guess[i]}`;
+                } else {
+                    if (i >= guess.length) {
+                        feedback += `❌ _`;
+                    }
+                    else {
+                        feedback += `❌ ${guess[i]}`;
+                    }
+                }
+            }
+        }
+
+        return { feedback, correct };
+    }
+
+    askForGuess();
+}
+
+async function saveGameStats(interaction, psychic, subject, targetNumber, attempts, finalScore) {
+    const sql1 = "SELECT MAX(UNIQUE_ID) as MAX_ID FROM STATS";
+
+    var result;
+    try {
+        result = await mysql.runQuery(sql1);
+    }
+    catch (error) {
+        logger.error("*** Error getting max unique id: " + error.stack);
+        return;
+    }
+
+    var unique_id = result[0].MAX_ID + 1;
+
+    const sql2 = `INSERT INTO STATS (UNIQUE_ID, PLAYER_ID, PLAYER_NAME, SUBJECT_ID, ` +
+        `SUBJECT_NAME, GUILD_ID, DATE, VALUE, NUM_GUESSES, SCORE) VALUES ` +
+        `('${unique_id}', '${psychic.id}', '${psychic.username}', '${subject.id}', ` +
+        `'${subject.username}', '${interaction.guild.id}', NOW(), '${targetNumber}', ` +
+        `'${attempts}', '${finalScore}')`;
+
+    try {
+        await mysql.runQuery(sql2);
+    }
+    catch (error) {
+        logger.error("*** Error saving game stats: " + error.stack);
+        return;
+    }
 }
