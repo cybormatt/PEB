@@ -19,7 +19,7 @@ client.commands = {}
 client.cmd_modules = {}
 client.modules = {}
 client.modals = {}
-client.WEB_URL = `https://${CONFIG.WebAPI.Hostname}`;
+client.WEB_URL = `https://${CONFIG.Hostname}`;
 
 /*** Log start time */
 const logger = require("./lib/logger.js");

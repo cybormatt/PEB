@@ -3,8 +3,11 @@ const logger = require("../lib/logger.js");
 var client;
 
 module.exports = {
-    name: "about",
+    name: "help",
     init() {
         client = this.client
+    },
+    async execute(interaction) {
+        interaction.reply("hello");
     }
 }

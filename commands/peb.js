@@ -34,7 +34,7 @@ module.exports = {
         if (sc == "help") client.cmd_modules.help(interaction);
         else if (sc == "about") client.cmd_modules.about(interaction);
         else if (sc == "number") client.cmd_modules.number(interaction);
-        else if (sc == "stats") await client.cmd_modules.stats.getStats(interaction);
+        else if (sc == "stats") await client.cmd_modules.stats(interaction);
         else if (sc == "word") client.cmd_modules.word(interaction);
 
         else interaction.reply("Unrecognized feature!");
