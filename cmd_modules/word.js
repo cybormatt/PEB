@@ -68,7 +68,7 @@ async function getWord(interaction, psychic, subject) {
     }
 
     const handler = async (message) => {
-        if (message.author.id != subject.id && !message.guild) return;
+        if (message.author.id != subject.id && message.guild) return;
 
         client.removeListener("messageCreate", handler);
 
@@ -98,7 +98,7 @@ function startGame(interaction, word, psychic, subject) {
 
             if (result.correct) {
                 const score = Math.max(0, 100 - (attempts - 1) * 10);
-                await interaction.followUp(`🎉 Congratulations ${subject}, you guessed the word "${word}" correctly in ${attempts} tries! Your score is ${score}.`);
+                await interaction.followUp(`🎉 Congratulations ${psychic}, you guessed the word "${word}" correctly in ${attempts} tries! Your score is ${score}.`);
 
                 // Save stats
                 saveGameStats(interaction, psychic, subject, word, attempts, score);

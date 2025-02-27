@@ -68,7 +68,7 @@ async function getNumber(interaction, psychic, subject) {
     }
 
     const handler = async (message) => {
-        if (message.author.id != subject.id && !message.guild) return;
+        if (message.author.id != subject.id && message.guild) return;
 
         let content = message.content;
 
@@ -106,7 +106,7 @@ function startGame(interaction, number, psychic, subject) {
 
             if (result.correct) {
                 const finalScore = calculateScore(attempts, maxScore);
-                await interaction.followUp(`Congratulations ${subject}! You guessed the correct number **${targetNumber}** in ${attempts} tries. Your score: ${finalScore}`);
+                await interaction.followUp(`Congratulations ${psychic}! You guessed the correct number **${targetNumber}** in ${attempts} tries. Your score: ${finalScore}`);
 
                 // Save stats
                 saveGameStats(interaction, psychic, subject, targetNumber, attempts, finalScore);
