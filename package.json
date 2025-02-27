@@ -1,0 +1,24 @@
+{
+  "name": "peb",
+  "version": "1.0.0",
+  "description": "psychic experimenent bot (PEB) - A Discord bot to perform psychic experiments with other people online",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "occult",
+    "psychic",
+    "experiment",
+    "paranormal",
+    "metaphysical",
+    "metaphysics"
+  ],
+  "author": "The Forgotten One",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "mysql2": "^3.12.0",
+    "npm-check-updates": "^17.1.14"
+  }
+}
