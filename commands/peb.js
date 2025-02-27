@@ -9,7 +9,7 @@ module.exports = {
         client = this.client;
     },
     data: new CommandBuilder()
-        .setGlobal(false)
+        .setGlobal(true)
         .setCommandType(CommandBuilder.MESSAGE_COMMAND)
         .setCommandType(CommandBuilder.SLASH_COMMAND)
         .setName("peb")

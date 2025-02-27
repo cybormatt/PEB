@@ -24,7 +24,9 @@ function readCommandFiles() {
     for (const file of commandFiles) {
         const command = require(`../commands/${file}`);
 
-        if (!command.isSlashCommand()) continue;
+        if (command.data.isGlobal && !command.data.isSlashCommand) continue;
+        else if (!command.data.isGlobal && !command.data.isSlashCommand()) continue;
+
         if (command.disabled) continue;
 
         if (command.data.isGlobal) {
