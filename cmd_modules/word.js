@@ -68,7 +68,7 @@ async function getWord(interaction, psychic, subject) {
     }
 
     const handler = async (message) => {
-        if (message.author.id != subject.id && message.guild) return;
+        if (message.author.id != subject.id || message.guild) return;
 
         client.removeListener("messageCreate", handler);
 
@@ -92,9 +92,9 @@ function startGame(interaction, word, psychic, subject) {
 
             client.removeListener("messageCreate", handler);
 
-            attempts++;
             const guess = message.content;
             const result = evaluateGuess(word, guess);
+            attempts++;
 
             if (result.correct) {
                 const score = Math.max(0, 100 - (attempts - 1) * 10);

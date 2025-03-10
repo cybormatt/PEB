@@ -214,7 +214,7 @@ function checkMentions(msg) {
         if (msg.mentions.members) {
             if (msg.author.id != client.user.id && !msg.author.bot &&
                 msg.mentions.members.find(mem => mem.id == client.user.id)) {
-                client.modules.about(msg);
+                client.cmd_modules.about(msg);
             }
         }
     }

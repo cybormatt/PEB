@@ -68,7 +68,7 @@ async function getNumber(interaction, psychic, subject) {
     }
 
     const handler = async (message) => {
-        if (message.author.id != subject.id && message.guild) return;
+        if (message.author.id != subject.id || message.guild) return;
 
         let content = message.content;
 
@@ -100,9 +100,15 @@ function startGame(interaction, number, psychic, subject) {
             if (message.author.id != psychic.id) return
             client.removeListener("messageCreate", handler);
 
-            attempts += 1;
+            if (isNaN(message.content)) {
+                interaction.followUp("The input is not a valid number. Please try again.");
+                askForGuess(); // Ask for the next guess;
+                return;
+            }
+
             const guess = message.content;
             const result = evaluateGuess(targetNumber, guess);
+            attempts += 1;
 
             if (result.correct) {
                 const finalScore = calculateScore(attempts, maxScore);
@@ -146,7 +152,7 @@ function startGame(interaction, number, psychic, subject) {
     };
 
     const calculateScore = (attempts, maxScore) => {
-        return Math.max(maxScore - attempts * 10, 0); // Subtract points based on attempts
+        return Math.max(maxScore - (attempts - 1) * 10, 0); // Subtract points based on attempts
     };
 
     askForGuess(); // Start the guessing loop
