@@ -15,6 +15,8 @@ module.exports = {
 
         if (!command) return;
 
+        const subcommand = interaction.options.getSubcommand();
+                
         try {
             var channel;
             var guild;
@@ -31,6 +33,7 @@ module.exports = {
             const message = "\n*** Slash command activated:\n" +
                 "  Date/Time: " + (new Date).toString() + "\n" +
                 `  Command: ${interaction.commandName}\n` +
+                `  Subcommand: ${subcommand}\n` +
                 `  User: (${interaction.user.id}) @${interaction.user.username}\n` +
                 `  Channel: ${channel}\n` +
                 `  Server: ${guild}\n`;

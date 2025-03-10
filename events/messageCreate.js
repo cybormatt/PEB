@@ -58,9 +58,11 @@ module.exports = {
                 }
 
                 var n = msg.content.indexOf(command.data.name) + command.data.name.length + 1;
+                const subcommand = msg.content.slice(n).trim();
                 const message = "\n*** KEYWORD activated:\n" +
                     "  Date/Time: " + (new Date).toString() + "\n" +
                     `  Keyword: ${activator}\n` +
+                    `  Subcommand: ${subcommand}\n` +
                     `  Args: ${msg.content.slice(n)}\n` +
                     `  User: (${msg.author.id}) @${msg.author.username}\n` +
                     `  Channel: ${channel}\n` +
