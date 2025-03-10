@@ -13,7 +13,6 @@ module.exports = {
     },
     async execute(msg) {
         logMessage(msg);
-        checkMentions(msg);
 
         var guildId = "";
 
@@ -207,15 +206,4 @@ function logMessage(msg) {
     }
 
     logger.verbose("");
-}
-
-function checkMentions(msg) {
-    if (msg.mentions) {
-        if (msg.mentions.members) {
-            if (msg.author.id != client.user.id && !msg.author.bot &&
-                msg.mentions.members.find(mem => mem.id == client.user.id)) {
-                client.cmd_modules.about(msg);
-            }
-        }
-    }
 }
