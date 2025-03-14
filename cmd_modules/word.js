@@ -2,13 +2,23 @@ const logger = require("../lib/logger.js");
 const mysql = require("../lib/mysql.js");
 
 var client;
+let INTERACTIONS = []; // handler for the messageCreate event in the startGame function
 
 module.exports = {
     name: "word",
+    checkStatus(interaction) {
+        for (let i = 0; i < INTERACTIONS.length; i++) {
+            if (INTERACTIONS[i].channelId == interaction.channel.id) {
+                return true;
+            }
+        }
+        return false;
+    },
     init() {
         client = this.client
+        client.on("messageCreate", callback);
     },
-    async execute(interaction) {
+    async start(interaction) {
         var user2 = interaction.options.getUser("user2");
 
         if (!user2) {
@@ -22,6 +32,13 @@ module.exports = {
         }
 
         var user1 = interaction.user;
+
+        for (i = 0; i < INTERACTIONS.length; i++) {
+            if (INTERACTIONS[i].channelId == interaction.channel.id) {
+                interaction.reply("There is already an experiment in progress in this channel.");
+                return;
+            }
+        }
 
         interaction.reply("Are you the 'psychic' or the 'subject'? Please type 'p' or 's'.");
 
@@ -55,13 +72,25 @@ module.exports = {
         }
 
         client.on("messageCreate", handler);
+    },
+    async stop(interaction) {
+        for (let i = 0; i < INTERACTIONS.length; i++) {
+            if (interaction.channel.id == INTERACTIONS[i].channelId) {
+                stopGame(interaction.channel);
+                interaction.reply("Experiment stopped.")
+                    .catch(err => logger.info("Error in stopping word game: " + err.stack));
+                return;
+            }
+            interaction.reply("There is no experiment in progress in this channel.")
+                .catch(err => logger.info("Error in stopping word game: " + err.stack));
+        }
     }
 }
 
 async function getWord(interaction, psychic, subject) {
     const dmChannel = await subject.createDM();
     try {
-        await dmChannel.send(`Player ${psychic} in ${interaction.channel} has started a word guessing experiment.  Please type a word.`);
+        await dmChannel.send(`Player ${psychic} in ${interaction.channel} has started a word guessing experiment.  Please type a word. **TIP: If you're new to this, start with a short word.**`);
     } catch (error) {
         interaction.followUp("Failed to get the word from the subject.");
         logger.error(error);
@@ -83,14 +112,18 @@ async function getWord(interaction, psychic, subject) {
     client.on("messageCreate", handler);
 }
 
-function startGame(interaction, word, psychic, subject) {
-    let attempts = 0;
+async function callback(message) {
+    if (!message.guild) return;
 
-    const askForGuess = async () => {
-        const handler = async (message) => {
-            if (message.author.id != psychic.id) return;
+    for (let i = 0; i < INTERACTIONS.length; i++) {
+        if (INTERACTIONS[i].channelId == message.channel.id) {
+            const interaction = INTERACTIONS[i].interaction;
+            const word = INTERACTIONS[i].word;
+            const psychic = INTERACTIONS[i].psychic;
+            const subject = INTERACTIONS[i].subject;
+            let attempts = INTERACTIONS[i].attempts;
 
-            client.removeListener("messageCreate", handler);
+            if (message.author.id != INTERACTIONS[i].psychic.id || message.channel.id != INTERACTIONS[i].channelId) return
 
             const guess = message.content;
             const result = evaluateGuess(word, guess);
@@ -105,43 +138,74 @@ function startGame(interaction, word, psychic, subject) {
 
             } else {
                 await interaction.followUp(`Your guess: ${guess}. ${result.feedback}. Try again!`);
-                askForGuess(); // Ask for the next guess
+                interaction.followUp(`Please make a guess, ${psychic}.`); // Ask for the next guess
             }
-
         }
-
-        client.on("messageCreate", handler);
     }
+}
 
-    const evaluateGuess = (word, guess) => {
-        let feedback = '';
-        let correct = false;
+function startGame(interaction, word, psychic, subject) {
+    let attempts = 0;
 
-        if (guess.toLowerCase() === word.toLowerCase()) {
-            correct = true;
-        }
-        else {
-            feedback = 'Incorrect guess. Here is how close you are: ';
-            for (let i = 0; i < word.length; i++) {
-                if (guess[i] === word[i]) {
-                    feedback += `✅ ${guess[i]}`;
-                } else if (word.includes(guess[i])) {
-                    feedback += `🔀 ${guess[i]}`;
-                } else {
-                    if (i >= guess.length) {
-                        feedback += `❌ _`;
-                    }
-                    else {
-                        feedback += `❌ ${guess[i]}`;
-                    }
+    var gameInteraction = {
+        id: interaction.id,
+        interaction: interaction,
+        psychic: psychic,
+        subject: subject,
+        channelId: interaction.channel.id,
+        word: word,
+        attempts: attempts
+    };
+
+    INTERACTIONS.push(gameInteraction);
+
+    interaction.followUp(`Please make a guess, ${psychic}.`);
+}
+
+function evaluateGuess(word, guess) {
+    let feedback = '';
+    let correct = false;
+
+    if (guess.toLowerCase() === word.toLowerCase()) {
+        correct = true;
+    }
+    else {
+        feedback = 'Incorrect guess. Here is how close you are: ';
+        for (let i = 0; i < word.length; i++) {
+            if (guess[i] === word[i]) {
+                feedback += `✅ ${guess[i]}`;
+            } else if (word.includes(guess[i])) {
+                feedback += `🔀 ${guess[i]}`;
+            } else {
+                if (i >= guess.length) {
+                    feedback += `❌ _`;
+                }
+                else {
+                    feedback += `❌ ${guess[i]}`;
                 }
             }
         }
-
-        return { feedback, correct };
     }
 
-    askForGuess();
+    return { feedback, correct };
+}
+
+function stopGame(channel) {
+    for (let i = 0; i < INTERACTIONS.length; i++) {
+        if (INTERACTIONS[i].channelId == channel.id) {
+            let _interactions = [];
+
+            for (let i = 0; i < INTERACTIONS.length; i++) {
+                if (INTERACTIONS[i].channelId != channel.id) {
+                    _interactions.push(INTERACTIONS[i]);
+                }
+            }
+
+            INTERACTIONS = _interactions;
+
+            return;
+        }
+    }
 }
 
 async function saveGameStats(interaction, psychic, subject, targetNumber, attempts, finalScore) {
