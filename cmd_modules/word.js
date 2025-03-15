@@ -67,7 +67,11 @@ module.exports = {
             interaction.followUp(`Please wait while I get the word from ${subject}...`);
 
             // Get the word from the subject
-            getWord(interaction, psychic, subject);
+            getWord(interaction, psychic, subject)
+                .catch(err => {
+                    interaction.followUp("Failed to get the word from the subject.");
+                    logger.info("Error in getting word from subject: " + err.stack);
+                });
 
         }
 
@@ -130,7 +134,7 @@ async function callback(message) {
             attempts++;
 
             if (result.correct) {
-                    stopGame(message.channel);
+                stopGame(message.channel);
 
                 const score = Math.max(0, 100 - (attempts - 1) * 10);
                 await interaction.followUp(`🎉 Congratulations ${psychic}, you guessed the word "${word}" correctly in ${attempts} tries! Your score is ${score}.`);

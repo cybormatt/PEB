@@ -67,7 +67,11 @@ module.exports = {
             interaction.followUp(`Please wait while I get the number from ${subject}...`);
 
             // Get the number from the subject
-            getNumber(interaction, psychic, subject);
+            getNumber(interaction, psychic, subject)
+                .catch(err => {
+                    interaction.followUp("Failed to get the number from the subject.");
+                    logger.info("Error in getting number from subject: " + err.stack);
+                });
 
         }
 
