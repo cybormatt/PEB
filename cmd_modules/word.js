@@ -130,6 +130,8 @@ async function callback(message) {
             attempts++;
 
             if (result.correct) {
+                    stopGame(message.channel);
+
                 const score = Math.max(0, 100 - (attempts - 1) * 10);
                 await interaction.followUp(`🎉 Congratulations ${psychic}, you guessed the word "${word}" correctly in ${attempts} tries! Your score is ${score}.`);
 
