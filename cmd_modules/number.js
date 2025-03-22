@@ -132,6 +132,7 @@ async function callback(message) {
             const targetNumber = INTERACTIONS[i].targetNumber;
             const psychic = INTERACTIONS[i].psychic;
             const subject = INTERACTIONS[i].subject;
+            const numGuesses = INTERACTIONS[i].numGuesses;
             let attempts = INTERACTIONS[i].attempts;
 
             if (message.author.id != INTERACTIONS[i].psychic.id || message.channel.id != INTERACTIONS[i].channelId) return
@@ -148,17 +149,26 @@ async function callback(message) {
             attempts += 1;
             INTERACTIONS[i].attempts = attempts;
 
+            const score = calculateScore(targetNumber, attempts);
+            if (score == 0 || attempts >= numGuesses) {
+                stopGame(message.channel);
+                saveGameStats(interaction, psychic, subject, targetNumber, attempts, 0);
+
+                await interaction.followUp(`You have reached the maximum number of attempts. The number was ${targetNumber}. Your score is 0.`);
+
+                return;
+            }
+
             if (result.correct) {
                 stopGame(message.channel);
 
-                const finalScore = calculateScore(attempts);
-                await interaction.followUp(`Congratulations ${psychic} !You guessed the correct number ** ${targetNumber}** in ${attempts} tries.Your score: ${finalScore} `);
+                await interaction.followUp(`Congratulations ${psychic}! You guessed the correct number ** ${targetNumber}** in ${attempts} tries.Your score: ${finalScore} `);
 
                 // Save stats
-                saveGameStats(interaction, psychic, subject, targetNumber, attempts, finalScore);
+                saveGameStats(interaction, psychic, subject, targetNumber, attempts, score);
             }
             else {
-                await interaction.followUp(`Your guess: ${guess}. ${result.message}. Try again!`);
+                await interaction.followUp(`Your guess (attempt ${attempts} out of ${numGuesses}): ${guess}. ${result.message}. Try again!`);
 
                 interaction.followUp(`Please make a guess, ${psychic}.`); // Ask for the next guess
             }
@@ -179,7 +189,8 @@ function startGame(interaction, number, psychic, subject) {
         subject: subject,
         channelId: interaction.channel.id,
         targetNumber: targetNumber,
-        attempts: attempts
+        attempts: attempts,
+        numGuesses: calcNumGuesses(targetNumber)
     };
 
     INTERACTIONS.push(gameInteraction);
@@ -212,8 +223,43 @@ function evaluateGuess(target, guess) {
     return { correct, message };
 }
 
-function calculateScore(attempts) {
-    return Math.max(100 - (attempts - 1) * 10, 0); // Subtract points based on attempts
+function getKconst(target) {
+    const n = target.length;
+
+    let k;
+    switch (n) {
+        case 1:
+            k = 0;
+            break;
+        case 2:
+            k = 0.3;
+            break;
+        case 3:
+            k = 0.5;
+            break;
+        case 4:
+            k = 0.75;
+            break;
+        default:
+            k = 1;
+            break;
+    }
+
+    return k;
+}
+
+function calcNumGuesses(target) {
+    const k = getKconst(target);
+
+    return Math.ceil(10 * Math.pow(10, k) + 1) - 1;
+}
+
+function calculateScore(target, attempts) {
+    const k = getKconst(target);
+
+    const scoreBase = (attempts - 1) * 10 / Math.pow(10, k);
+
+    return Math.max(100 - scoreBase, 0); // Adjust score based on length and attempts
 }
 
 function stopGame(channel) {

@@ -29,7 +29,8 @@ module.exports = {
             .addStringOption(sc => sc.setName("enddate").setDescription("The end date for the stats").setRequired(false))
             .setDescription("Show your stats for the PEB game"))
         .addSubcommand(sc => sc.setName("stopnum").setDescription("Stop the current number experiment in the current channel"))
-        .addSubcommand(sc => sc.setName("stopword").setDescription("Stop the current word experiment in the current channel")),
+        .addSubcommand(sc => sc.setName("stopword").setDescription("Stop the current word experiment in the current channel"))
+        .addSubcommand(sc => sc.setName("board").setDescription("Show the leaderboard for the PEB game")),
     async execute(interaction) {
         var sc = interaction.options.getSubcommand();
 
@@ -67,6 +68,8 @@ module.exports = {
                 interaction.reply("There is no word experiment in progress in this channel.")
                     .catch(err => logger.info("Error in stopping word game: " + err.stack));
         }
+        else if (sc == "board")
+            client.cmd_modules.board(interaction);
         else interaction.reply("Unrecognized feature!");
     }
 }

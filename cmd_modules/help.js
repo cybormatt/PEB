@@ -24,6 +24,7 @@ module.exports = {
                 `**💰 Word** \`${pre}peb word @user2\`– Play by word.  User 2 is the other player.\n\n` +
                 `**🛑 Stop Number** \`${pre}peb stopnum\`– Stop the current number game\n\n` +
                 `**🛑 Stop Word** \`${pre}peb stopword\`– Stop the current word game\n\n` +
+                `**🏆 Leader Board**  \`${pre}peb board\`\n\n` +
                 `**📈 Statistics**  \`${pre}peb stats\`\n\n\n` +
                 `Here are some tips on getting started for the first time.  Start simple.  Use small numbers` +
                 ` or short words.  The psychic should try to clear their mind and focus on the number or word` +

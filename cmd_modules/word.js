@@ -125,25 +125,37 @@ async function callback(message) {
             const word = INTERACTIONS[i].word;
             const psychic = INTERACTIONS[i].psychic;
             const subject = INTERACTIONS[i].subject;
+            const numGuesses = INTERACTIONS[i].numGuesses;
             let attempts = INTERACTIONS[i].attempts;
 
             if (message.author.id != INTERACTIONS[i].psychic.id || message.channel.id != INTERACTIONS[i].channelId) return
 
             const guess = message.content;
             const result = evaluateGuess(word, guess);
+
             attempts++;
+            INTERACTIONS[i].attempts = attempts;
+
+            const score = calculateScore(word, attempts);
+            if (score == 0 || attempts >= numGuesses) {
+                stopGame(message.channel);
+                saveGameStats(interaction, psychic, subject, word, attempts, 0);
+
+                await interaction.followUp(`You have reached the maximum number of attempts. The word was ${word}. Your score is 0.`);
+
+                return;
+            }
 
             if (result.correct) {
                 stopGame(message.channel);
 
-                const score = Math.max(0, 100 - (attempts - 1) * 10);
                 await interaction.followUp(`🎉 Congratulations ${psychic}, you guessed the word "${word}" correctly in ${attempts} tries! Your score is ${score}.`);
 
                 // Save stats
                 saveGameStats(interaction, psychic, subject, word, attempts, score);
 
             } else {
-                await interaction.followUp(`Your guess: ${guess}. ${result.feedback}. Try again!`);
+                await interaction.followUp(`Your guess (attempt ${attempts} out of ${numGuesses}): ${guess}. ${result.feedback}. Try again!`);
                 interaction.followUp(`Please make a guess, ${psychic}.`); // Ask for the next guess
             }
         }
@@ -160,7 +172,8 @@ function startGame(interaction, word, psychic, subject) {
         subject: subject,
         channelId: interaction.channel.id,
         word: word,
-        attempts: attempts
+        attempts: attempts,
+        numGuesses: calcNumGuesses(word)
     };
 
     INTERACTIONS.push(gameInteraction);
@@ -194,6 +207,45 @@ function evaluateGuess(word, guess) {
     }
 
     return { feedback, correct };
+}
+
+function getKconst(target) {
+    const n = target.length;
+
+    let k;
+    switch (n) {
+        case 1:
+            k = 0;
+            break;
+        case 2:
+            k = 0.3;
+            break;
+        case 3:
+            k = 0.5;
+            break;
+        case 4:
+            k = 0.75;
+            break;
+        default:
+            k = 1;
+            break;
+    }
+
+    return k;
+}
+
+function calcNumGuesses(target) {
+    const k = getKconst(target);
+
+    return Math.ceil(10 * Math.pow(10, k) + 1) - 1;
+}
+
+function calculateScore(target, attempts) {
+    const k = getKconst(target);
+
+    const scoreBase = (attempts - 1) * 10 / Math.pow(10, k);
+
+    return Math.max(100 - scoreBase, 0); // Adjust score based on length and attempts
 }
 
 function stopGame(channel) {
