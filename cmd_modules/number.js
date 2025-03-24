@@ -162,7 +162,7 @@ async function callback(message) {
             if (result.correct) {
                 stopGame(message.channel);
 
-                await interaction.followUp(`Congratulations ${psychic}! You guessed the correct number ** ${targetNumber}** in ${attempts} tries.Your score: ${finalScore} `);
+                await interaction.followUp(`Congratulations ${psychic}! You guessed the correct number ** ${targetNumber}** in ${attempts} tries.Your score: ${score} `);
 
                 // Save stats
                 saveGameStats(interaction, psychic, subject, targetNumber, attempts, score);
