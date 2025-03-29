@@ -1,3 +1,4 @@
+const { ActionRowBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ModalBuilder } = require('discord.js');
 const logger = require("../lib/logger.js");
 const mysql = require("../lib/mysql.js");
 
@@ -66,13 +67,42 @@ module.exports = {
 
             interaction.followUp(`Please wait while I get the word from ${subject}...`);
 
-            // Get the word from the subject
-            getWord(interaction, psychic, subject)
-                .catch(err => {
-                    interaction.followUp("Failed to get the word from the subject.");
-                    logger.info("Error in getting word from subject: " + err.stack);
-                });
+            // Create a button for the subject to click
+            const button = new ButtonBuilder()
+                .setCustomId('getWord')
+                .setLabel('Get Word')
+                .setStyle(ButtonStyle.Primary);
+            const row = new ActionRowBuilder().addComponents(button);
 
+            // Send the button to the subject
+            interaction.followUp({
+                content: `Please click the button to get the word, ${subject}.  **TIP:  If you're new to this, start with a small word.**`,
+                components: [row]
+            });
+
+
+            var handler2 = async (buttonInteraction) => {
+                if (!buttonInteraction.isButton()) return;
+
+                if (buttonInteraction.user.id != subject.id) {
+                    buttonInteraction.reply({ content: "This button is not for you!", ephemeral: true });
+                    return;
+                }
+
+                if (buttonInteraction.customId !== 'getWord') return;
+
+                // Remove the listener
+                client.removeListener("interactionCreate", handler2);
+
+                // Get the word from the subject
+                getWord(buttonInteraction, psychic, subject, interaction)
+                    .catch(err => {
+                        interaction.followUp("Failed to get the word from the subject.");
+                        logger.info("Error in getting word from subject: " + err.stack);
+                    });
+            }
+
+            client.on("interactionCreate", handler2);
         }
 
         client.on("messageCreate", handler);
@@ -91,29 +121,49 @@ module.exports = {
     }
 }
 
-async function getWord(interaction, psychic, subject) {
-    const dmChannel = await subject.createDM();
-    try {
-        await dmChannel.send(`Player ${psychic} in ${interaction.channel} has started a word guessing experiment.  Please type a word. **TIP: If you're new to this, start with a short word.**`);
-    } catch (error) {
-        interaction.followUp("Failed to get the word from the subject.");
-        logger.error(error);
-    }
+async function getWord(buttonInteraction, psychic, subject, interaction) {
+    // Create a modal
+    const modal = new ModalBuilder()
+        .setCustomId('wordModal')
+        .setTitle('Please enter a word');
 
-    const handler = async (message) => {
-        if (message.author.id != subject.id || message.guild) return;
+    // Create a text input component
+    const wordInput = new TextInputBuilder()
+        .setCustomId('wordInput')
+        .setLabel("Enter a word")
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder("Type a word")
+        .setRequired(true);
 
-        client.removeListener("messageCreate", handler);
+    // Create an action row and add the text input to it
+    const firstActionRow = new ActionRowBuilder().addComponents(wordInput);
 
-        let content = message.content;
+    // Add the action row to the modal
+    modal.addComponents(firstActionRow);
+
+    // Create a handler for the submission of the modal
+    const handler = async (modalInteraction) => {
+        if (!modalInteraction.isModalSubmit()) return;
+
+        if (modalInteraction.customId !== 'wordModal') return;
+
+        // Remove the listener
+        client.removeListener("interactionCreate", handler);
+
+        // Get the number from the modal
+        const word = modalInteraction.fields.getTextInputValue('wordInput');
 
         await interaction.followUp("Subject has made selection.  Starting game...");
-        await dmChannel.send(`Please return to ${interaction.channel} to watch ${psychic} make guesses.`);
+        await modalInteraction.reply({ content: "Word received. Starting game...", ephemeral: true });
 
-        startGame(interaction, content, psychic, subject);
+        startGame(interaction, word, psychic, subject);
     }
 
-    client.on("messageCreate", handler);
+    // Add the handler for the modal submission
+    client.on("interactionCreate", handler);
+
+    // Show the modal to the subject
+    buttonInteraction.showModal(modal);
 }
 
 async function callback(message) {

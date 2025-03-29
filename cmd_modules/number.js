@@ -1,4 +1,4 @@
-const logger = require("../lib/logger.js");
+const { ActionRowBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ModalBuilder } = require('discord.js'); const logger = require("../lib/logger.js");
 const mysql = require("../lib/mysql.js");
 
 var client;
@@ -66,13 +66,41 @@ module.exports = {
 
             interaction.followUp(`Please wait while I get the number from ${subject}...`);
 
-            // Get the number from the subject
-            getNumber(interaction, psychic, subject)
-                .catch(err => {
-                    interaction.followUp("Failed to get the number from the subject.");
-                    logger.info("Error in getting number from subject: " + err.stack);
-                });
+            // Create a button for the subject to click
+            const button = new ButtonBuilder()
+                .setCustomId('getNumber')
+                .setLabel('Get Number')
+                .setStyle(ButtonStyle.Primary);
+            const row = new ActionRowBuilder().addComponents(button);
 
+            // Send the button to the subject
+            interaction.followUp({
+                content: `Please click the button to get the number, ${subject}.  **TIP:  If you're new to this, start with a small number.**`,
+                components: [row]
+            });
+
+            var handler2 = async (buttonInteraction) => {
+                if (!buttonInteraction.isButton()) return;
+
+                if (buttonInteraction.user.id != subject.id) {
+                    buttonInteraction.reply({ content: "This button is not for you!", ephemeral: true });
+                    return;
+                }
+
+                if (buttonInteraction.customId !== 'getNumber') return;
+
+                // Remove the listener
+                client.removeListener("interactionCreate", handler2);
+
+                // Get the number from the subject
+                getNumber(buttonInteraction, psychic, subject, interaction)
+                    .catch(err => {
+                        interaction.followUp("Failed to get the number from the subject.");
+                        logger.info("Error in getting number from subject: " + err.stack);
+                    });
+            }
+
+            client.on("interactionCreate", handler2);
         }
 
         client.on("messageCreate", handler);
@@ -91,36 +119,54 @@ module.exports = {
     }
 }
 
-async function getNumber(interaction, psychic, subject) {
-    const dmChannel = await subject.createDM();
-    try {
-        await dmChannel.send(`Player ${psychic} in ${interaction.channel} has started a number guessing experiment.  Please type a whole number.  **TIP:  If you're new to this, start with a small number.**`);
-    } catch (error) {
-        interaction.followUp("Failed to get the number from the subject.");
-        logger.error(error);
-    }
+async function getNumber(buttonInteraction, psychic, subject, interaction) {
+    // Create a modal
+    const modal = new ModalBuilder()
+        .setCustomId('numberModal')
+        .setTitle('Please enter a number');
 
-    const handler = async (message) => {
-        if (message.author.id != subject.id || message.guild) return;
+    // Create a text input component
+    const numberInput = new TextInputBuilder()
+        .setCustomId('numberInput')
+        .setLabel("Enter a whole number")
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder("Type a whole number")
+        .setRequired(true);
 
-        let content = message.content;
+    // Create an action row and add the text input to it
+    const firstActionRow = new ActionRowBuilder().addComponents(numberInput);
 
-        if (isNaN(content)) {
-            interaction.followUp("The input is not a valid number. Please try again.");
+    // Add the action row to the modal
+    modal.addComponents(firstActionRow);
+
+    // Create a handler for the submission of the modal
+    const handler = async (modalInteraction) => {
+        if (!modalInteraction.isModalSubmit()) return;
+
+        if (modalInteraction.customId !== 'numberModal') return;
+
+        // Remove the listener
+        client.removeListener("interactionCreate", handler);
+
+        // Get the number from the modal
+        const number = modalInteraction.fields.getTextInputValue('numberInput');
+
+        if (isNaN(number)) {
+            buttonInteraction.followUp("The input is not a valid number. Please try again.");
             return;
         }
 
-        client.removeListener("messageCreate", handler);
-
-        const number = parseInt(content);
-
         await interaction.followUp("Subject has made selection.  Starting game...");
-        await dmChannel.send(`Please return to ${interaction.channel} to watch ${psychic} make guesses.`);
+        await modalInteraction.reply({ content: "Number received. Starting game...", ephemeral: true });
 
         startGame(interaction, number, psychic, subject);
     }
 
-    client.on("messageCreate", handler);
+    // Add the handler for the modal submission
+    client.on("interactionCreate", handler);
+
+    // Show the modal to the subject
+    buttonInteraction.showModal(modal);
 }
 
 async function callback(message) {
